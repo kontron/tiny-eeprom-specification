@@ -1,0 +1,3 @@
+*.o
+tiny-eep-decode
+tiny-eep-encode
