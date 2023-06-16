@@ -94,7 +94,7 @@ static void tlv_finish(void)
 
 static void tlv_init(void)
 {
-	memset(tlv_data->buf, 0, sizeof(tlv_data->buf));
+	memset(tlv_data->buf, 0xff, sizeof(tlv_data->buf));
 	tlv_data->len = 0;
 }
 
@@ -271,6 +271,7 @@ static void usage(const char *prog)
 	       "Options:\n"
 	       "  -h --help                     This help text.\n"
 	       "  -v --verbose                  Be more verbose.\n"
+	       "  --pad-to N                    Pad the output binary to N bytes.\n"
 	       "  --serial-number SERIAL        Set serial-number\n"
 	       "  --base-mac-address MAC        Set the base MAC address.\n"
 	       "  --product ID                  Set the product identity.\n"
@@ -297,7 +298,8 @@ static void usage(const char *prog)
 }
 
 enum {
-	OPT_SERIAL_NUMBER = 256,
+	OPT_PAD_TO = 256,
+	OPT_SERIAL_NUMBER,
 	OPT_BASE_MAC_ADDRESS,
 	OPT_PRODUCT,
 	OPT_PRODUCT_BATCH,
@@ -309,6 +311,7 @@ enum {
 static const struct option opts[] = {
 	{"help", no_argument, 0, 'h'},
 	{"verbose", no_argument, 0, 'v'},
+	{"pad-to", required_argument, 0, OPT_PAD_TO},
 	{"serial-number", required_argument, 0, OPT_SERIAL_NUMBER},
 	{"base-mac-address", required_argument, 0, OPT_BASE_MAC_ADDRESS},
 	{"product", required_argument, 0, OPT_PRODUCT},
@@ -323,6 +326,7 @@ int main(int argc, char **argv)
 {
 	int opt;
 	FILE *f;
+	int o_pad_to = 0;
 	char *o_serial_number = NULL;
 	struct ether_addr *o_base_mac_address = NULL;
 	struct product_identity o_product = { 0 };
@@ -338,6 +342,18 @@ int main(int argc, char **argv)
 		case 'v':
 			verbose++;
 			break;
+
+		case OPT_PAD_TO:
+		{
+			char *endptr;
+
+			o_pad_to = strtoul(optarg, &endptr, 0);
+			if (*endptr != '\0') {
+				fprintf(stderr, "Could not parse padding\n");
+				return EXIT_FAILURE;
+			}
+			break;
+		}
 
 		case OPT_SERIAL_NUMBER:
 			o_serial_number = optarg;
@@ -464,7 +480,7 @@ parse:
 		return EXIT_FAILURE;
 	}
 
-	fwrite(tlv_data->buf, tlv_data->len, 1, f);
+	fwrite(tlv_data->buf, o_pad_to ?: tlv_data->len, 1, f);
 
 	fclose(f);
 
