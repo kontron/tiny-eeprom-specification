@@ -72,6 +72,14 @@ static void tlv_add_header(void)
 	tlv_data->len += sizeof(*hdr);
 }
 
+static int tlv_validate(void)
+{
+	if (tlv_data->len > UINT8_MAX)
+		return 1;
+
+	return 0;
+}
+
 static void tlv_finish(void)
 {
 	struct eep_header *hdr = (struct eep_header*)&tlv_data->buf;
@@ -415,12 +423,6 @@ parse:
 
 	o_filename = argv[optind];
 
-	f = fopen(o_filename, "w");
-	if (!f) {
-		fprintf(stderr, "Could not open file: %s\n", strerror(errno));
-		return EXIT_FAILURE;
-	}
-
 	strings_pool_init();
 	tlv_init();
 	tlv_add_header();
@@ -448,9 +450,23 @@ parse:
 		tlv_add_factory_test_flags(o_factory_test_flags);
 
 	tlv_add_strings_pool();
+
+	if (tlv_validate()) {
+		fprintf(stderr, "Could not generate binary. Size exceeded?\n");
+		return EXIT_FAILURE;
+	}
+
 	tlv_finish();
 
+	f = fopen(o_filename, "w");
+	if (!f) {
+		fprintf(stderr, "Could not open file: %s\n", strerror(errno));
+		return EXIT_FAILURE;
+	}
+
 	fwrite(tlv_data->buf, tlv_data->len, 1, f);
+
+	fclose(f);
 
 	return EXIT_SUCCESS;
 }
