@@ -272,6 +272,7 @@ static void usage(const char *prog)
 	       "  -h --help                     This help text.\n"
 	       "  -v --verbose                  Be more verbose.\n"
 	       "  --pad-to N                    Pad the output binary to N bytes.\n"
+	       "  --max-size N                  Error out if the binary exceeds N bytes.\n"
 	       "  --serial-number SERIAL        Set serial-number\n"
 	       "  --base-mac-address MAC        Set the base MAC address.\n"
 	       "  --product ID                  Set the product identity.\n"
@@ -299,6 +300,7 @@ static void usage(const char *prog)
 
 enum {
 	OPT_PAD_TO = 256,
+	OPT_MAX_SIZE,
 	OPT_SERIAL_NUMBER,
 	OPT_BASE_MAC_ADDRESS,
 	OPT_PRODUCT,
@@ -312,6 +314,7 @@ static const struct option opts[] = {
 	{"help", no_argument, 0, 'h'},
 	{"verbose", no_argument, 0, 'v'},
 	{"pad-to", required_argument, 0, OPT_PAD_TO},
+	{"max-size", required_argument, 0, OPT_MAX_SIZE},
 	{"serial-number", required_argument, 0, OPT_SERIAL_NUMBER},
 	{"base-mac-address", required_argument, 0, OPT_BASE_MAC_ADDRESS},
 	{"product", required_argument, 0, OPT_PRODUCT},
@@ -327,6 +330,7 @@ int main(int argc, char **argv)
 	int opt;
 	FILE *f;
 	int o_pad_to = 0;
+	int o_max_size = 0;
 	char *o_serial_number = NULL;
 	struct ether_addr *o_base_mac_address = NULL;
 	struct product_identity o_product = { 0 };
@@ -350,6 +354,18 @@ int main(int argc, char **argv)
 			o_pad_to = strtoul(optarg, &endptr, 0);
 			if (*endptr != '\0') {
 				fprintf(stderr, "Could not parse padding\n");
+				return EXIT_FAILURE;
+			}
+			break;
+		}
+
+		case OPT_MAX_SIZE:
+		{
+			char *endptr;
+
+			o_max_size = strtoul(optarg, &endptr, 0);
+			if (*endptr != '\0') {
+				fprintf(stderr, "Could not parse max size\n");
 				return EXIT_FAILURE;
 			}
 			break;
@@ -473,6 +489,11 @@ parse:
 	}
 
 	tlv_finish();
+
+	if (o_max_size && tlv_data->len > o_max_size) {
+		fprintf(stderr, "Maximum size exceeded. Aborting.\n");
+		return EXIT_FAILURE;
+	}
 
 	f = fopen(o_filename, "w");
 	if (!f) {
